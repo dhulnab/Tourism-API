@@ -25,7 +25,7 @@ const companySignup = async (req, res) => {
     );
 
     const company = result.rows[0];
-    res.send({ success: true, company });
+    res.send({ success: true, company: [company] });
   } catch (error) {
     console.error("Error during registration:", error);
 
@@ -51,7 +51,7 @@ const companyLogin = async (req, res) => {
 
       if (match) {
         var token = jwt.sign(company, process.env.CMOP_ACCESS_TOKEN);
-        res.send({ success: true, token, company });
+        res.send({ success: true, token, company: [company] });
       } else {
         res.send({ success: false, msg: "Wrong password!" });
       }
@@ -70,10 +70,10 @@ const getCompany = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      res.send({ success: false, msg: "User not found" });
+      res.send({ success: false, msg: "Company not found" });
     } else {
-      let user = result.rows[0];
-      res.send({ success: true, user });
+      let company = result.rows[0];
+      res.send({ success: true, company: [company] });
     }
   } catch (error) {
     console.error("Error during operation:", error);
@@ -107,7 +107,7 @@ const editCompany = async (req, res) => {
       const updatedCompany = result.rows[0];
       res.send({
         success: true,
-        updatedCompany,
+        updatedCompany: [updatedCompany],
       });
     } else {
       res.status(404).send({
@@ -125,7 +125,7 @@ const editCompany = async (req, res) => {
 };
 
 const deleteCompany = async (req, res) => {
-  let CompanyID = req.params.CompanyID;
+  let CompanyID = parseInt(req.params.id);
   const result = await client.query(
     `UPDATE Company
        SET active = false
@@ -136,7 +136,7 @@ const deleteCompany = async (req, res) => {
   res.send({
     success: true,
     msg: "deleted successfully",
-    deletedCompany,
+    deletedCompany: [deletedCompany],
   });
 };
 
@@ -162,13 +162,52 @@ const Companies = async (req, res) => {
           ORDER BY CompanyName ASC
           LIMIT ${limit} OFFSET ${offset};`
     );
-    res.send({ success: true, Companies: result.rows });
+    res.send({ success: true, companies: result.rows });
   } catch (error) {
     console.error("Error fetching Companies:", error);
     res.status(500).send({
       success: false,
       message: "Internal Server Error",
     });
+  }
+};
+
+const changePassword = async (req, res) => {
+  const company_id = req.params.id;
+  try {
+    let { password, newPassword } = req.body;
+    const result = await client.query(
+      `SELECT * FROM Company WHERE CompanyID = '${company_id}'`
+    );
+    if (result.rows.length === 0) {
+      res.send({ success: false, msg: "Not found" });
+    } else {
+      let company = result.rows[0];
+      const match = await bcrypt.compare(password, company.password);
+      if (match) {
+        const hashPassword = bcrypt.hashSync(
+          newPassword,
+          Number(process.env.SALT)
+        );
+        const result1 = await client.query(
+          `UPDATE Company 
+           SET Password = '${hashPassword}'
+           WHERE CompanyID = ${company_id}
+           RETURNING *;`
+        );
+        const company = result1.rows[0];
+        res.send({ success: true, company: [company] });
+      } else {
+        res.send({ success: false, msg: "Wrong password!" });
+      }
+    }
+  } catch (error) {
+    console.error("Error during changing the password:", error);
+
+    // Handle the error response
+    res
+      .status(500)
+      .send({ success: false, msg: "Internal Server Error", error });
   }
 };
 
@@ -179,4 +218,5 @@ module.exports = {
   deleteCompany,
   editCompany,
   getCompany,
+  changePassword,
 };

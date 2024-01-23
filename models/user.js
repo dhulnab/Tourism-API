@@ -51,7 +51,8 @@ const registration = async (req, res) => {
     );
 
     const user = result.rows[0];
-    res.send({ success: true, user });
+    var token = jwt.sign(user, process.env.USER_ACCESS_TOKEN);
+    res.send({ success: true, token, user: [user] });
   } catch (error) {
     console.error("Error during registration:", error);
 
@@ -59,6 +60,77 @@ const registration = async (req, res) => {
     res
       .status(500)
       .send({ success: false, msg: "Duplicated phone number or email", error });
+  }
+};
+const updateUser = async (req, res) => {
+  const user_id = req.params.id;
+  const buff = await uploadFile(req.files.foo.data, {
+    publicKey: process.env.PUBLIC_KEY,
+    store: "auto",
+    metadata: {
+      subsystem: "uploader",
+      pet: "cat",
+    },
+  });
+  const avatar = buff.cdnUrl;
+  try {
+    let { name, phoneNum, email } = req.body;
+
+    let result = await client.query(
+      `UPDATE "User" 
+       SET
+       Name = '${name}', phoneNumber = '${phoneNum}', avatar = '${avatar}', Email = '${email}'
+       WHERE UserID = ${user_id}
+       RETURNING *;`
+    );
+
+    const updatedUser = result.rows[0];
+    res.send({ success: true, updatedUser: [updatedUser] });
+  } catch (error) {
+    console.error("Error during registration:", error);
+
+    // Handle the error response
+    res
+      .status(500)
+      .send({ success: false, msg: "Duplicated phone number or email", error });
+  }
+};
+const changePassword = async (req, res) => {
+  const user_id = req.params.id;
+  try {
+    let { password, newPassword } = req.body;
+    const result = await client.query(
+      `SELECT * FROM "User" WHERE UserID = '${user_id}'`
+    );
+    if (result.rows.length === 0) {
+      res.send({ success: false, msg: "Not found" });
+    } else {
+      let user = result.rows[0];
+      const match = await bcrypt.compare(password, user.password);
+      if (match) {
+        const hashPassword = bcrypt.hashSync(
+          newPassword,
+          Number(process.env.SALT)
+        );
+        const result1 = await client.query(
+          `UPDATE "User" 
+           SET Password = '${hashPassword}'
+           WHERE UserID = ${user_id}
+           RETURNING *;`
+        );
+        const user = result1.rows[0];
+        res.send({ success: true, user: [user] });
+      } else {
+        res.send({ success: false, msg: "Wrong password!" });
+      }
+    }
+  } catch (error) {
+    console.error("Error during changing the password:", error);
+
+    // Handle the error response
+    res
+      .status(500)
+      .send({ success: false, msg: "Internal Server Error", error });
   }
 };
 
@@ -73,7 +145,7 @@ const profile = async (req, res) => {
       res.send({ success: false, msg: "User not found" });
     } else {
       let user = result.rows[0];
-      res.send({ success: true, user });
+      res.send({ success: true, user: [user] });
     }
   } catch (error) {
     console.error("Error during operation:", error);
@@ -81,6 +153,4 @@ const profile = async (req, res) => {
   }
 };
 
-
-
-module.exports = { login, registration, profile };
+module.exports = { login, registration, profile, changePassword, updateUser };

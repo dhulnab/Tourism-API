@@ -1,10 +1,18 @@
-const { registration, login, profile } = require("../models/User");
+const {
+  registration,
+  login,
+  profile,
+  changePassword,
+  updateUser,
+} = require("../models/User");
 const express = require("express");
 const router = express.Router();
 
-//users table
+//Users table
 router.post("/user/signup", registration);
 router.post("/user/login", login);
 router.get("/user/profile/:id", profile);
+router.put("/user/changepassword/:id", changePassword);
+router.put("/user/update/:id", updateUser);
 
 module.exports = router;
