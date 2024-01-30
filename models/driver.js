@@ -173,7 +173,7 @@ const changeStatus = async (req, res) => {
     let result = await client.query(
       `UPDATE Driver SET 
              available = '${ava}'
-             WHERE DriverID = =${driver_id}
+             WHERE DriverID = ${driver_id}
              RETURNING *;`
     );
     driver = result.rows[0];
