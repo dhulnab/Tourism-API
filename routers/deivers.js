@@ -7,6 +7,7 @@ const {
   changeStatus,
   drivers,
 } = require("../models/driver");
+const { checkAuthDriver } = require("../middleware");
 const express = require("express");
 const router = express.Router();
 
@@ -15,8 +16,8 @@ router.post("/driver/signup", driverSignup);
 router.post("/driver/login", driverLogin);
 router.get("/driver/get/:id", getDriver);
 router.get("/driver/drivers", drivers);
-router.put("/driver/changepassword/:id", changePassword);
-router.put("/driver/changestatus/:id", changeStatus);
-router.put("/driver/update/:id", updateDriver);
+router.put("/driver/changepassword/:id", checkAuthDriver, changePassword);
+router.put("/driver/changestatus/:id", checkAuthDriver, changeStatus);
+router.put("/driver/update/:id", checkAuthDriver, updateDriver);
 
 module.exports = router;
