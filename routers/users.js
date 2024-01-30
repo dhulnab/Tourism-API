@@ -4,7 +4,7 @@ const {
   profile,
   changePassword,
   updateUser,
-} = require("../models/User");
+} = require("../models/userm");
 const { checkAuthUser } = require("../middleware");
 const express = require("express");
 const router = express.Router();
