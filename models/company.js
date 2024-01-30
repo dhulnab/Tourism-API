@@ -92,12 +92,11 @@ const editCompany = async (req, res) => {
     },
   });
   const logo = buff.cdnUrl;
-  let { name, phoneNum, email, password, location, facebookURL } = req.body;
-  const hashPassword = bcrypt.hashSync(password, Number(process.env.SALT));
+  let { name, phoneNum, email, location, facebookURL } = req.body;
   try {
     const result = await client.query(`
         UPDATE Company
-        SET CompanyName = '${name}', password = '${hashPassword}', Email = '${email}',
+        SET CompanyName = '${name}', Email = '${email}',
         Location = '${location}', CompanyLogo = '${logo}', CompanyNumber = '${phoneNum}',
         active = 'true',Facebook = '${facebookURL}'
         WHERE CompanyID = ${CompanyID}
@@ -191,7 +190,7 @@ const changePassword = async (req, res) => {
         );
         const result1 = await client.query(
           `UPDATE Company 
-           SET Password = '${hashPassword}'
+           SET password = '${hashPassword}'
            WHERE CompanyID = ${company_id}
            RETURNING *;`
         );
