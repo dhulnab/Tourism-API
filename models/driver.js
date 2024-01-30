@@ -84,10 +84,10 @@ const updateDriver = async (req, res) => {
     } = req.body;
 
     let result = await client.query(
-      `UPDATE Driver SET DriverName='${name}', phoneNumber='${phoneNum}', Email='${email}',
+      `UPDATE Driver SET DriverName ='${name}', phoneNumber ='${phoneNum}', Email='${email}',
        DriverLocation='${DriverLocation}', CarName='${CarName}', NumberOfPassenger='${NumberOfPassenger}', PlateNumber='${PlateNumber}',
        PlateChar='${PlateChar}', PlateType='${PlateType}', PlateCity='${PlateCity}'  
-       WHERE DriverID = =${driver_id}
+       WHERE DriverID =${driver_id}
        RETURNING *;`
     );
 
