@@ -1,5 +1,6 @@
 const client = require("../db");
 const bcrypt = require("bcrypt");
+const { sendOTPverificationCode } = require("./verifiedRecord");
 var jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -13,19 +14,55 @@ const driverLogin = async (req, res) => {
     if (result.rows.length === 0) {
       res.send({ success: false, msg: "Driver not found" });
     } else {
-      let Driver = result.rows[0];
-      const match = await bcrypt.compare(password, Driver.password);
-
+      let driver = result.rows[0];
+      const match = await bcrypt.compare(password, driver.password);
       if (match) {
-        var token = jwt.sign(Driver, process.env.DRIVER_ACCESS_TOKEN);
-        res.send({ success: true, token, driver: [Driver] });
+        if (!driver.verified) {
+          if (!driver.driverid || !driver.email) {
+            res.send({
+              success: false,
+              verified: false,
+              msg: "Record missing some details",
+            });
+            throw Error("Empty otp details are not allowed");
+          } else {
+            await client.query(
+              `DELETE FROM Verify WHERE driverid = ${driver.driverid};`
+            );
+            const emailStatus = await sendOTPverificationCode(
+              driver.email,
+              driver.drivername,
+              null,
+              null,
+              driver.driverid
+            );
+            if (emailStatus.success) {
+              res.send({
+                success: true,
+                verified: false,
+                msg: "Account not verified, email verification message sent to your email address",
+              });
+            } else {
+              res.send({
+                success: false,
+                verified: false,
+                msg: "Invalid email address",
+              });
+            }
+          }
+        } else {
+          var token = jwt.sign(driver, process.env.DRIVER_ACCESS_TOKEN);
+          res.send({ success: true, verified: true, token, driver: [driver] });
+        }
       } else {
-        res.send({ success: false, msg: "Wrong password!" });
+        res.send({ success: false, verified: false, msg: "Wrong password!" });
       }
     }
   } catch (error) {
     console.error("Error during login:", error);
-    res.status(500).send({ success: false, msg: "Internal Server Error" });
+    res
+      .status(500)
+      .send({ success: false, verified: false, msg: "Internal Server Error" });
   }
 };
 
@@ -49,15 +86,32 @@ const driverSignup = async (req, res) => {
     let result = await client.query(
       `INSERT INTO Driver ( DriverName, phoneNumber, password, Email,
          DriverLocation, CarName, NumberOfPassenger, PlateNumber,
-          PlateChar, PlateType, PlateCity, available ) 
+          PlateChar, PlateType, PlateCity, available,Verified ) 
       VALUES ('${name}', '${phoneNum}', '${hashPassword}','${email}',
       '${DriverLocation}','${CarName}','${NumberOfPassenger}','${PlateNumber}',
-      '${PlateChar}','${PlateType}','${PlateCity}', 'true') 
+      '${PlateChar}','${PlateType}','${PlateCity}', 'true',false) 
       RETURNING *;`
     );
 
     const Driver = result.rows[0];
-    res.send({ success: true, driver: [Driver] });
+
+    const emailStatus = await sendOTPverificationCode(
+      Driver.email,
+      Driver.drivername,
+      null,
+      null,
+      Driver.driverid
+    );
+    if (emailStatus.success) {
+      res.send({ success: true, driver: [Driver] });
+    } else {
+      await client.query(
+        `DELETE FROM Driver
+             WHERE DriverID = ${Driver.driverid}
+             RETURNING *;`
+      );
+      res.send({ success: false, error: emailStatus.msg });
+    }
   } catch (error) {
     console.error("Error during registration:", error);
 
@@ -220,6 +274,72 @@ const drivers = async (req, res) => {
   }
 };
 
+const verified = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const otp = req.body.otp;
+    if (!id || !otp) {
+      res.send({ success: false, msg: "Empty otp details are not allowed" });
+      throw Error("Empty otp details are not allowed");
+    } else {
+      const result = await client.query(
+        `SELECT * FROM Verify WHERE driverid = '${id}'`
+      );
+      if (result.rows.length === 0) {
+        res.send({
+          success: false,
+          msg: "Account record does not exist or has been verified already, please sign up or log in",
+        });
+      } else {
+        let record = result.rows[0];
+        if (record.expired_at < Date.now()) {
+          await client.query(`DELETE FROM Verify
+                 WHERE driverid = ${id};`);
+          res.send({ success: false, msg: "Code has expired, Try again" });
+        } else {
+          const match = await bcrypt.compare(otp, record.otp);
+          if (match) {
+            const result1 = await client.query(
+              `UPDATE Driver 
+               SET Verified = true
+               WHERE DriverID = ${id}
+               RETURNING *;`
+            );
+            const driver = result1.rows[0];
+            var token = jwt.sign(driver, process.env.DRIVER_ACCESS_TOKEN);
+            await client.query(`DELETE FROM Verify WHERE driverid = ${id};`);
+            res.send({ success: true, token, driver: [driver] });
+          } else {
+            res.send({ success: false, msg: "Invalid OTP code" });
+            throw new Error("Invalid OTP code");
+          }
+        }
+      }
+    }
+  } catch (error) {
+    res.send({ success: false, msg: error.message });
+    console.error(error);
+  }
+};
+
+const resendOtp = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const email = req.body.email;
+    if (!id || !email) {
+      res.send({ success: false, msg: "Empty otp details are not allowed" });
+      throw Error("Empty otp details are not allowed");
+    } else {
+      await client.query(`DELETE FROM Verify WHERE driverid = ${id};`);
+      const emailStatus = await sendOTPverificationCode(email, null, id);
+      res.send({ success: emailStatus.success, msg: emailStatus.msg });
+    }
+  } catch (error) {
+    res.send({ success: false, msg: error.message });
+    console.error(error);
+  }
+};
+
 module.exports = {
   driverLogin,
   driverSignup,
@@ -228,4 +348,6 @@ module.exports = {
   changeStatus,
   changePassword,
   drivers,
+  verified,
+  resendOtp,
 };

@@ -6,6 +6,8 @@ const {
   editCompany,
   getCompany,
   changePassword,
+  verified,
+  resendOtp,
 } = require("../models/company");
 const { checkAuthCompany } = require("../middleware");
 const express = require("express");
@@ -13,6 +15,8 @@ const router = express.Router();
 
 //Companies table
 router.post("/company/signup", companySignup);
+router.post("/company/verify/:id", verified);
+router.post("/company/verify/resend/:id", resendOtp);
 router.post("/company/login", companyLogin);
 router.get("/company/getcompany/:id", getCompany);
 router.get("/company/view", Companies);

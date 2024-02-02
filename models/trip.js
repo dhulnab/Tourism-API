@@ -1,9 +1,8 @@
 const client = require("../db");
 require("dotenv").config();
-const { uploadFile } = require("@uploadcare/upload-client");
+const { uploadImage } = require("./image_uploader");
 
 const trips = async (req, res) => {
-  console.log(req.query);
   let company_id = parseInt(req.query.company_id) || null;
   let search = req.query.search || "";
   const skip = parseInt(req.query.skip) || 1;
@@ -46,34 +45,10 @@ const trips = async (req, res) => {
 
 const addTrip = async (req, res) => {
   const company_id = Number(req.params.id);
-  const result1 = await uploadFile(req.files.img1.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image1 = result1.cdnUrl;
-  const result2 = await uploadFile(req.files.img2.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image2 = result2.cdnUrl;
 
-  const result3 = await uploadFile(req.files.img3.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image3 = result3.cdnUrl;
+  const image1 = (await uploadImage(req.files.img1)).cdnUrl;
+  const image2 = (await uploadImage(req.files.img2)).cdnUrl;
+  const image3 = (await uploadImage(req.files.img3)).cdnUrl;
   const {
     Country,
     city1,
@@ -135,34 +110,9 @@ const getTrip = async (req, res) => {
 
 const editTrip = async (req, res) => {
   const TripID = parseInt(req.params.id);
-  const result1 = await uploadFile(req.files.img1.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image1 = result1.cdnUrl;
-  const result2 = await uploadFile(req.files.img2.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image2 = result2.cdnUrl;
-
-  const result3 = await uploadFile(req.files.img3.data, {
-    publicKey: process.env.PUBLIC_KEY,
-    store: "auto",
-    metadata: {
-      subsystem: "uploader",
-      pet: "cat",
-    },
-  });
-  const image3 = result3.cdnUrl;
+  const image1 = (await uploadImage(req.files.img1)).cdnUrl;
+  const image2 = (await uploadImage(req.files.img2)).cdnUrl;
+  const image3 = (await uploadImage(req.files.img3)).cdnUrl;
   const {
     Country,
     city1,

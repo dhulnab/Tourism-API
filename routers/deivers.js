@@ -6,6 +6,8 @@ const {
   updateDriver,
   changeStatus,
   drivers,
+  verified,
+  resendOtp,
 } = require("../models/driver");
 const { checkAuthDriver } = require("../middleware");
 const express = require("express");
@@ -13,6 +15,8 @@ const router = express.Router();
 
 //Drivers table
 router.post("/driver/signup", driverSignup);
+router.post("/driver/verify/:id", verified);
+router.post("/driver/verify/resend/:id", resendOtp);
 router.post("/driver/login", driverLogin);
 router.get("/driver/get/:id", getDriver);
 router.get("/driver/drivers", drivers);
