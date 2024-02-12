@@ -1,4 +1,4 @@
-const client = require("../db");
+const pool = require("../db");
 const bcrypt = require("bcrypt");
 var jwt = require("jsonwebtoken");
 const { sendOTPverificationCode } = require("./verifiedRecord");
@@ -11,7 +11,7 @@ const companySignup = async (req, res) => {
     let { name, phoneNum, email, password, location, facebookURL } = req.body;
     const hashPassword = bcrypt.hashSync(password, Number(process.env.SALT));
 
-    let result = await client.query(
+    let result = await pool.query(
       `INSERT INTO Company ( CompanyName, password, Email, Location, CompanyLogo, CompanyNumber, Facebook, active,Verified ) 
           VALUES ('${name}', '${hashPassword}', '${email}','${location}','${logo}','${phoneNum}', '${facebookURL}', 'true',false) 
           RETURNING *;`
@@ -27,7 +27,7 @@ const companySignup = async (req, res) => {
     if (emailStatus.success) {
       res.send({ success: true, company: [company] });
     } else {
-      await client.query(
+      await pool.query(
         `DELETE FROM Company
              WHERE CompanyID = ${company.companyid}
              RETURNING *;`
@@ -47,7 +47,7 @@ const companySignup = async (req, res) => {
 const companyLogin = async (req, res) => {
   try {
     let { phoneNum, password } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Company WHERE CompanyNumber = '${phoneNum}'`
     );
 
@@ -67,7 +67,7 @@ const companyLogin = async (req, res) => {
             });
             throw Error("Empty otp details are not allowed");
           } else {
-            await client.query(
+            await pool.query(
               `DELETE FROM Verify WHERE companyid = ${company.companyid};`
             );
             const emailStatus = await sendOTPverificationCode(
@@ -113,7 +113,7 @@ const companyLogin = async (req, res) => {
 const getCompany = async (req, res) => {
   try {
     let CompanyID = Number(req.params.id);
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Company WHERE CompanyID ='${CompanyID}'`
     );
 
@@ -134,7 +134,7 @@ const editCompany = async (req, res) => {
   const logo = (await uploadImage(req.files.logo)).cdnUrl;
   let { name, phoneNum, email, location, facebookURL } = req.body;
   try {
-    const result = await client.query(`
+    const result = await pool.query(`
         UPDATE Company
         SET CompanyName = '${name}', Email = '${email}',
         Location = '${location}', CompanyLogo = '${logo}', CompanyNumber = '${phoneNum}',
@@ -165,7 +165,7 @@ const editCompany = async (req, res) => {
 
 const deleteCompany = async (req, res) => {
   let CompanyID = parseInt(req.params.id);
-  const result = await client.query(
+  const result = await pool.query(
     `UPDATE Company
        SET active = false
        WHERE CompanyID = ${CompanyID}
@@ -196,7 +196,7 @@ const Companies = async (req, res) => {
 
   try {
     if (search !== null) {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Company 
             WHERE CompanyName ILIKE '%${search}%' AND active = true 
             ORDER BY CompanyName ASC
@@ -204,7 +204,7 @@ const Companies = async (req, res) => {
       );
       res.send({ success: true, companies: result.rows });
     } else {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Company 
             WHERE active = true 
             ORDER BY CompanyName ASC
@@ -225,7 +225,7 @@ const changePassword = async (req, res) => {
   const company_id = req.params.id;
   try {
     let { password, newPassword } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Company WHERE CompanyID = '${company_id}'`
     );
     if (result.rows.length === 0) {
@@ -238,7 +238,7 @@ const changePassword = async (req, res) => {
           newPassword,
           Number(process.env.SALT)
         );
-        const result1 = await client.query(
+        const result1 = await pool.query(
           `UPDATE Company 
            SET password = '${hashPassword}'
            WHERE CompanyID = ${company_id}
@@ -268,7 +268,7 @@ const verified = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Verify WHERE companyid = '${id}'`
       );
       if (result.rows.length === 0) {
@@ -279,13 +279,13 @@ const verified = async (req, res) => {
       } else {
         let record = result.rows[0];
         if (record.expired_at < Date.now()) {
-          await client.query(`DELETE FROM Verify
+          await pool.query(`DELETE FROM Verify
                  WHERE companyid = ${id};`);
           res.send({ success: false, msg: "Code has expired, Try again" });
         } else {
           const match = await bcrypt.compare(otp, record.otp);
           if (match) {
-            const result1 = await client.query(
+            const result1 = await pool.query(
               `UPDATE Company 
                SET Verified = true
                WHERE CompanyID = ${id}
@@ -293,7 +293,7 @@ const verified = async (req, res) => {
             );
             const company = result1.rows[0];
             var token = jwt.sign(company, process.env.CMOP_ACCESS_TOKEN);
-            await client.query(`DELETE FROM Verify WHERE companyid = ${id};`);
+            await pool.query(`DELETE FROM Verify WHERE companyid = ${id};`);
             res.send({ success: true, token, company: [company] });
           } else {
             res.send({ success: false, msg: "Invalid OTP code" });
@@ -316,7 +316,7 @@ const resendOtp = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      await client.query(`DELETE FROM Verify WHERE companyid = ${id};`);
+      await pool.query(`DELETE FROM Verify WHERE companyid = ${id};`);
       const emailStatus = await sendOTPverificationCode(email, null, id);
       res.send({ success: emailStatus.success, msg: emailStatus.msg });
     }

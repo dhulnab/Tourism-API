@@ -1,4 +1,4 @@
-const client = require("../db");
+const pool = require("../db");
 const bcrypt = require("bcrypt");
 var jwt = require("jsonwebtoken");
 const { sendOTPverificationCode } = require("./verifiedRecord");
@@ -8,7 +8,7 @@ require("dotenv").config();
 const login = async (req, res) => {
   try {
     let { phoneNum, password } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM "User" WHERE phoneNumber = '${phoneNum}'`
     );
 
@@ -28,7 +28,7 @@ const login = async (req, res) => {
             });
             throw Error("Empty otp details are not allowed");
           } else {
-            await client.query(
+            await pool.query(
               `DELETE FROM Verify WHERE userid = ${user.userid};`
             );
             const emailStatus = await sendOTPverificationCode(
@@ -71,7 +71,7 @@ const registration = async (req, res) => {
     let { name, phoneNum, email, password } = req.body;
     const hashPassword = bcrypt.hashSync(password, Number(process.env.SALT));
 
-    let result = await client.query(
+    let result = await pool.query(
       `INSERT INTO "User" ( Name, phoneNumber, avatar, Email, Password,Verified ) 
       VALUES ('${name}', '${phoneNum}', '${avatar}','${email}','${hashPassword}',false) 
       RETURNING *;`
@@ -86,7 +86,7 @@ const registration = async (req, res) => {
       if (emailStatus.success) {
         res.send({ success: true, user: [user] });
       } else {
-        await client.query(
+        await pool.query(
           `DELETE FROM "User"
                WHERE UserID = ${user.userid}
                RETURNING *;`
@@ -113,7 +113,7 @@ const updateUser = async (req, res) => {
   try {
     let { name, phoneNum, email } = req.body;
 
-    let result = await client.query(
+    let result = await pool.query(
       `UPDATE "User" 
        SET
        Name = '${name}', phoneNumber = '${phoneNum}', avatar = '${avatar}', Email = '${email}'
@@ -137,7 +137,7 @@ const changePassword = async (req, res) => {
   const user_id = req.params.id;
   try {
     let { password, newPassword } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM "User" WHERE UserID = '${user_id}'`
     );
     if (result.rows.length === 0) {
@@ -150,7 +150,7 @@ const changePassword = async (req, res) => {
           newPassword,
           Number(process.env.SALT)
         );
-        const result1 = await client.query(
+        const result1 = await pool.query(
           `UPDATE "User" 
            SET Password = '${hashPassword}'
            WHERE UserID = ${user_id}
@@ -175,7 +175,7 @@ const changePassword = async (req, res) => {
 const profile = async (req, res) => {
   try {
     let UserID = req.params.id;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM "User" WHERE UserID = '${UserID}'`
     );
 
@@ -199,7 +199,7 @@ const verified = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Verify WHERE userid = '${id}'`
       );
       if (result.rows.length === 0) {
@@ -210,13 +210,13 @@ const verified = async (req, res) => {
       } else {
         let record = result.rows[0];
         if (record.expired_at < Date.now()) {
-          await client.query(`DELETE FROM Verify
+          await pool.query(`DELETE FROM Verify
                  WHERE userid = ${id};`);
           res.send({ success: false, msg: "Code has expired, Try again" });
         } else {
           const match = await bcrypt.compare(otp, record.otp);
           if (match) {
-            const result1 = await client.query(
+            const result1 = await pool.query(
               `UPDATE "User" 
                SET Verified = true
                WHERE UserID = ${id}
@@ -224,7 +224,7 @@ const verified = async (req, res) => {
             );
             const user = result1.rows[0];
             var token = jwt.sign(user, process.env.USER_ACCESS_TOKEN);
-            await client.query(`DELETE FROM Verify WHERE userid = ${id};`);
+            await pool.query(`DELETE FROM Verify WHERE userid = ${id};`);
             res.send({ success: true, token, user: [user] });
           } else {
             res.send({ success: false, msg: "Invalid OTP code" });
@@ -247,7 +247,7 @@ const resendOtp = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      await client.query(`DELETE FROM Verify WHERE userid = ${id};`);
+      await pool.query(`DELETE FROM Verify WHERE userid = ${id};`);
       const emailStatus = await sendOTPverificationCode(email, null, id);
       res.send({ success: emailStatus.success, msg: emailStatus.msg });
     }

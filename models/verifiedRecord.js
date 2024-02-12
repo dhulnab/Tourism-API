@@ -1,5 +1,5 @@
 require("dotenv").config();
-const client = require("../db");
+const pool = require("../db");
 const bcrypt = require("bcrypt");
 const Mailgen = require("mailgen");
 const nodemailer = require("nodemailer");
@@ -63,7 +63,7 @@ const sendOTPverificationCode = async (
     await transporter.sendMail(message);
 
     const hashOTP = bcrypt.hashSync(otp, Number(process.env.SALT));
-    const verificationResult = await client.query(`
+    const verificationResult = await pool.query(`
         INSERT INTO verify (${
           userid !== null
             ? "userid"

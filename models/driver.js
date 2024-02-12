@@ -1,4 +1,4 @@
-const client = require("../db");
+const pool = require("../db");
 const bcrypt = require("bcrypt");
 const { sendOTPverificationCode } = require("./verifiedRecord");
 var jwt = require("jsonwebtoken");
@@ -7,7 +7,7 @@ require("dotenv").config();
 const driverLogin = async (req, res) => {
   try {
     let { phoneNum, password } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Driver WHERE phoneNumber = '${phoneNum}'`
     );
 
@@ -26,7 +26,7 @@ const driverLogin = async (req, res) => {
             });
             throw Error("Empty otp details are not allowed");
           } else {
-            await client.query(
+            await pool.query(
               `DELETE FROM Verify WHERE driverid = ${driver.driverid};`
             );
             const emailStatus = await sendOTPverificationCode(
@@ -83,7 +83,7 @@ const driverSignup = async (req, res) => {
     } = req.body;
     const hashPassword = bcrypt.hashSync(password, Number(process.env.SALT));
 
-    let result = await client.query(
+    let result = await pool.query(
       `INSERT INTO Driver ( DriverName, phoneNumber, password, Email,
          DriverLocation, CarName, NumberOfPassenger, PlateNumber,
           PlateChar, PlateType, PlateCity, available,Verified ) 
@@ -105,7 +105,7 @@ const driverSignup = async (req, res) => {
     if (emailStatus.success) {
       res.send({ success: true, driver: [Driver] });
     } else {
-      await client.query(
+      await pool.query(
         `DELETE FROM Driver
              WHERE DriverID = ${Driver.driverid}
              RETURNING *;`
@@ -137,7 +137,7 @@ const updateDriver = async (req, res) => {
       PlateCity,
     } = req.body;
 
-    let result = await client.query(
+    let result = await pool.query(
       `UPDATE Driver SET DriverName ='${name}', phoneNumber ='${phoneNum}', Email='${email}',
        DriverLocation='${DriverLocation}', CarName='${CarName}', NumberOfPassenger='${NumberOfPassenger}', PlateNumber='${PlateNumber}',
        PlateChar='${PlateChar}', PlateType='${PlateType}', PlateCity='${PlateCity}'  
@@ -160,7 +160,7 @@ const updateDriver = async (req, res) => {
 const getDriver = async (req, res) => {
   try {
     let DriverID = parseInt(req.params.id);
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Driver WHERE DriverID = '${DriverID}'`
     );
 
@@ -180,7 +180,7 @@ const changePassword = async (req, res) => {
   const driver_id = req.params.id;
   try {
     let { password, newPassword } = req.body;
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Driver WHERE DriverID = '${driver_id}'`
     );
     if (result.rows.length === 0) {
@@ -193,7 +193,7 @@ const changePassword = async (req, res) => {
           newPassword,
           Number(process.env.SALT)
         );
-        const result1 = await client.query(
+        const result1 = await pool.query(
           `UPDATE Driver 
              SET Password = '${hashPassword}'
              WHERE DriverID = ${driver_id}
@@ -218,13 +218,13 @@ const changePassword = async (req, res) => {
 const changeStatus = async (req, res) => {
   const driver_id = req.params.id;
   try {
-    const respo = await client.query(
+    const respo = await pool.query(
       `SELECT * FROM Driver WHERE DriverID = '${driver_id}'`
     );
     let driver = respo.rows[0];
     let ava;
     driver.available ? (ava = false) : (ava = true);
-    let result = await client.query(
+    let result = await pool.query(
       `UPDATE Driver SET 
              available = '${ava}'
              WHERE DriverID = ${driver_id}
@@ -258,7 +258,7 @@ const drivers = async (req, res) => {
   const offset = parseInt((skip - 1) * limit);
 
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Driver 
           WHERE DriverName ILIKE '%${search}%' AND available = true 
           ORDER BY DriverName ASC
@@ -282,7 +282,7 @@ const verified = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Verify WHERE driverid = '${id}'`
       );
       if (result.rows.length === 0) {
@@ -293,13 +293,13 @@ const verified = async (req, res) => {
       } else {
         let record = result.rows[0];
         if (record.expired_at < Date.now()) {
-          await client.query(`DELETE FROM Verify
+          await pool.query(`DELETE FROM Verify
                  WHERE driverid = ${id};`);
           res.send({ success: false, msg: "Code has expired, Try again" });
         } else {
           const match = await bcrypt.compare(otp, record.otp);
           if (match) {
-            const result1 = await client.query(
+            const result1 = await pool.query(
               `UPDATE Driver 
                SET Verified = true
                WHERE DriverID = ${id}
@@ -307,7 +307,7 @@ const verified = async (req, res) => {
             );
             const driver = result1.rows[0];
             var token = jwt.sign(driver, process.env.DRIVER_ACCESS_TOKEN);
-            await client.query(`DELETE FROM Verify WHERE driverid = ${id};`);
+            await pool.query(`DELETE FROM Verify WHERE driverid = ${id};`);
             res.send({ success: true, token, driver: [driver] });
           } else {
             res.send({ success: false, msg: "Invalid OTP code" });
@@ -330,7 +330,7 @@ const resendOtp = async (req, res) => {
       res.send({ success: false, msg: "Empty otp details are not allowed" });
       throw Error("Empty otp details are not allowed");
     } else {
-      await client.query(`DELETE FROM Verify WHERE driverid = ${id};`);
+      await pool.query(`DELETE FROM Verify WHERE driverid = ${id};`);
       const emailStatus = await sendOTPverificationCode(email, null, id);
       res.send({ success: emailStatus.success, msg: emailStatus.msg });
     }

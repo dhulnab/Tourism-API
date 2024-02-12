@@ -1,4 +1,4 @@
-const client = require("../db");
+const pool = require("../db");
 
 const tickets = async (req, res) => {
   let company_id = parseInt(req.query.company_id) || null;
@@ -7,13 +7,13 @@ const tickets = async (req, res) => {
   let driver_id = parseInt(req.query.driver_id) || null;
   try {
     if (company_id !== null) {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Ticket 
         WHERE CompanyID = ${company_id} AND TripID = ${trip_id} `
       );
       res.send({ success: true, tickets: result.rows });
     } else if (user_id !== null) {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Ticket 
         WHERE UserID = ${user_id}' AND TripID = ${trip_id} 
         ORDER BY Price ASC`
@@ -31,7 +31,7 @@ const tickets = async (req, res) => {
       });
     }
     if (driver_id !== null) {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Ticket 
         WHERE DriverID = ${driver_id}'
         ORDER BY Price ASC`
@@ -69,7 +69,7 @@ const addTicket = async (req, res) => {
   } = req.body;
   const price = parseFloat(req.body.price);
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `INSERT INTO Ticket(TicketType, Price, PurchaseDate, Name, LastName, 
         DateOfBirth, Nationality, Gender, PassportNumber, PlaceOfIssue, ExpiryDate,
         CompanyID, UserID, TripID, DriverID)
@@ -107,7 +107,7 @@ const updateTicket = async (req, res) => {
     ExpiryDate,
   } = req.body;
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `UPDATE Ticket
        SET Name ='${Name}', LastName ='${LastName}', DateOfBirth ='${DateOfBirth}',
        Nationality='${Nationality}', Gender='${Gender}', PassportNumber='${PassportNumber}',
@@ -132,7 +132,7 @@ const updateTicket = async (req, res) => {
 };
 const deleteTicket = async (req, res) => {
   let ticket_id = parseInt(req.params.id);
-  const result = await client.query(
+  const result = await pool.query(
     `DELETE FROM Ticket
          WHERE TripID = ${ticket_id}
          RETURNING *;`
@@ -148,7 +148,7 @@ const deleteTicket = async (req, res) => {
 const getTicket = async (req, res) => {
   try {
     let ticket_id = Number(req.params.id);
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Ticket WHERE TicketID ='${ticket_id}'`
     );
 

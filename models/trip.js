@@ -1,4 +1,4 @@
-const client = require("../db");
+const pool = require("../db");
 require("dotenv").config();
 const { uploadImage } = require("./image_uploader");
 
@@ -19,14 +19,14 @@ const trips = async (req, res) => {
 
   try {
     if (company_id !== null) {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Trip 
             WHERE CompanyID = ${company_id}
             ORDER BY Country ASC;`
       );
       res.send({ success: true, trips: result.rows });
     } else {
-      const result = await client.query(
+      const result = await pool.query(
         `SELECT * FROM Trip 
             WHERE Country ILIKE '%${search}%' AND active = true 
             ORDER BY Price ASC
@@ -63,7 +63,7 @@ const addTrip = async (req, res) => {
   const price = parseFloat(req.body.price);
   const PriceForChild = parseFloat(req.body.PriceForChild);
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `INSERT INTO Trip(Country, city_1, city_2, city_3, TripType, 
         Price, StartDate, EndDate, TripProgram, Images_1, Images_2,
          Images_3, "Limit", UsersNum, PriceForChild, active, CompanyID)
@@ -92,7 +92,7 @@ const addTrip = async (req, res) => {
 const getTrip = async (req, res) => {
   try {
     let TripID = Number(req.params.id);
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Trip WHERE TripID ='${TripID}'`
     );
 
@@ -127,7 +127,7 @@ const editTrip = async (req, res) => {
   const price = parseFloat(req.body.price);
   const PriceForChild = parseFloat(req.body.PriceForChild);
   try {
-    const result = await client.query(`
+    const result = await pool.query(`
     UPDATE Trip
     SET Country = '${Country}', city_1 = '${city1}', city_2 = '${city2}',
     city_3 = '${city3}', TripType = '${TripType}', Price = '${price}',
@@ -155,7 +155,7 @@ const editTrip = async (req, res) => {
 
 const deleteTrip = async (req, res) => {
   let trip_id = parseInt(req.params.id);
-  const result = await client.query(
+  const result = await pool.query(
     `UPDATE Trip
        SET active = false
        WHERE TripID = ${trip_id}

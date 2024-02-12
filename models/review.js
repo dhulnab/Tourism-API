@@ -1,11 +1,11 @@
-const client = require("../db");
+const pool = require("../db");
 
 const addReview = async (req, res) => {
   const company_id = Number(req.params.id);
   const comment = req.body.comment;
   const stars = Number(req.body.stars);
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `INSERT INTO Review (Comment, Stars, CompanyID)
             VALUES('${comment}',${stars},${company_id}) 
             RETURNING *`
@@ -29,7 +29,7 @@ const addReview = async (req, res) => {
 const getCompanyRating = async (req, res) => {
   const company_id = Number(req.params.id);
   try {
-    const result = await client.query(
+    const result = await pool.query(
       `SELECT * FROM Review WHERE CompanyID ='${company_id}'`
     );
 
